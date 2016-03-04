@@ -1,0 +1,3 @@
+[submodule "quick-grid"]
+	path = quick-grid
+	url = git@github.com:kiandra-it/quick-grid.git

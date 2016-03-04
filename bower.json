@@ -1,0 +1,26 @@
+{
+  "name": "ng-quick-grid",
+  "authors": [
+    "Sam Critchley <critchley.sj@gmail.com>"
+  ],
+  "description": "angular ui for quick-grid",
+  "main": "ng-quick-grid.js",
+  "moduleType": [],
+  "keywords": [
+    "grid",
+    "angular"
+  ],
+  "license": "MIT",
+  "homepage": "https://github.com/kiandra-it/test-data",
+  "ignore": [
+    "**/.*",
+    "node_modules",
+    "bower_components",
+    "test",
+    "tests",
+    "quick-grid"
+  ],
+  "dependencies": {
+    "angular": "1.4"
+  }
+}
