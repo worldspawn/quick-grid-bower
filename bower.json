@@ -11,7 +11,7 @@
     "angular"
   ],
   "license": "MIT",
-  "homepage": "https://github.com/kiandra-it/test-data",
+  "homepage": "https://github.com/kiandra-it/quick-grid",
   "ignore": [
     "**/.*",
     "node_modules",
