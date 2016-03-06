@@ -20,9 +20,9 @@
 })();
 (function (module) {
   try {
-    module = angular.module('template-partials');
+    module = angular.module('quick-grid-partials');
   } catch (e) {
-    module = angular.module('template-partials', []);
+    module = angular.module('quick-grid-partials', []);
   }
   module.run(['$templateCache', function ($templateCache) {
       $templateCache.put('/quick-grid/quick-grid-footer.html',
