@@ -154,11 +154,14 @@
       Object.keys(this.filters)
         .forEach(function (key) {
           var name = 'filters[' + segments.length + ']';
-          segments.push(name + '.key=' + key);
-          segments.push(name + '.value=' + escape(this.filters[key].toJSON()));
+          var value = this.filters[key].toJSON();
+          if (value !== undefined) {
+            segments.push(name + '.key=' + key);
+            segments.push(name + '.value=' + escape(this.filters[key].toJSON()));
+          }
         }.bind(this));
 
-      segments.push('paging.pageIndex=' + (this.paging.pageIndex || ''));
+      segments.push('paging.pageIndex=' + (this.paging.pageIndex || 0));
       segments.push('paging.sortBy=' + escape(this.paging.sortBy || ''));
       segments.push('paging.filterHash=' + escape(this.paging.filterHash || ''));
 
