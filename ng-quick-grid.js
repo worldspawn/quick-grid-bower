@@ -74,6 +74,15 @@
 (function () {
   'use strict';
 
+  var operatorPrototype = {
+    setNot: function (not) {
+      this.not = not;
+    },
+    toggleNot: function () {
+      this.not = !this.not;
+    }
+  };
+
   function PrefixOperator(value, operator) {
     this.value = value;
     this.toJSON = function () {
@@ -84,6 +93,7 @@
       return operator + value;
     };
   }
+  PrefixOperator.prototype = operatorPrototype;
 
   var operators = {
     '%': function (value) {
@@ -132,104 +142,136 @@
     }
   };
 
+  Object.keys(operators)
+    .forEach(function (key) {
+      operators[key].prototype = operatorPrototype;
+    });
+
   function PagingModel(defaultSortBy) {
     this.sort(defaultSortBy);
   }
 
-  function SearchModel(defaultSortBy, defaultModel) {
+  function updatePaging(result) {
+    /* jshint validthis: true */
+    if (result.pageCount !== null) {
+      this.pageCount.length = result.pageCount;
+    }
+
+    this.paging.filterHash = result.filterHash;
+  }
+
+  function attachPagingWatch() {
+    /* jshint validthis: true */
+    if (!this.scope) {
+      return;
+    }
+    this.pagingWatchHandle = this.scope.$watch(function () {
+      return this.paging;
+    }.bind(this), function (newValue, oldValue) {
+      if (newValue.sortBy !== oldValue.sortBy || newValue.pageIndex !== oldValue.pageIndex) {
+        this.apply(false);
+      }
+    }.bind(this), true);
+  }
+
+  function onChange(newValue, oldValue) {
+    /* jshint validthis: true */
+    if (newValue === oldValue) {
+      return;
+    }
+    this.apply();
+  }
+
+  function attachOtherWatchers() {
+    /* jshint validthis: true */
+    this.modelWatchHandle = this.scope.$watch(function () {
+      return this.model;
+    }.bind(this), onChange.bind(this), true);
+
+    this.filterWatchHandle = this.scope.$watch(function () {
+      return this.filters;
+    }.bind(this), onChange.bind(this), true);
+  }
+
+  function SearchModel(callback, defaultSortBy, defaultModel) {
     this.model = defaultModel || {};
     this.paging = new PagingModel(defaultSortBy);
     this.pageCount = [];
     this.filters = {};
-    this.toJSON = function () {
-      return {
-        model: this.model,
-        paging: this.paging,
-        filters: this.filters
-      };
-    }.bind(this);
-    this.toQueryString = function () {
+    this.callback = callback;
+  }
+
+  SearchModel.prototype = {
+    watch: function (scope) {
+      this.scope = scope;
+      attachOtherWatchers.call(this);
+      attachPagingWatch.call(this);
+      return this;
+    },
+    refresh: function () {
+      this.callback(this);
+    },
+    addFilter: function (key, operator, value) {
+      var Constructor = operators[operator] || PrefixOperator;
+      this.filters[key] = new Constructor(value, operator);
+      return this;
+    },
+    apply: function (reset) {
+      if (this.pagingWatchHandle) {
+        this.pagingWatchHandle();
+      }
+      if (reset) {
+        this.paging.pageIndex = 0;
+        this.paging.filterHash = null;
+      }
+      this.callback(this)
+        .then(updatePaging.bind(this))
+        .then(attachPagingWatch.bind(this));
+    },
+    toQueryString: function () {
+      /* jshint validthis: true */
       //note model is not output in the query string, i'd have to build a deep converter and i can't be arsed. just use filters! :P
       var segments = [];
+      var filterCount = 0;
       Object.keys(this.filters)
         .forEach(function (key) {
-          var name = 'filters[' + segments.length + ']';
+          var name = 'filters[' + filterCount+++']';
           var value = this.filters[key].toJSON();
           if (value !== undefined) {
-            segments.push(name + '.key=' + key);
-            segments.push(name + '.value=' + escape(this.filters[key].toJSON()));
+            var not = this.filters[key].not ? '!' : '';
+            segments.push(name + '.key=' + escape(key));
+            segments.push(name + '.value=' + escape(not + value));
           }
         }.bind(this));
+
+      if (this.model) {
+        Object.keys(this.model)
+          .forEach(function (key) {
+            var value = this.model[key].toJSON();
+            if (value !== undefined) {
+              segments.push(escape(key) + '=' + escape(value));
+            }
+          }.bind(this));
+      }
 
       segments.push('paging.pageIndex=' + (this.paging.pageIndex || 0));
       segments.push('paging.sortBy=' + escape(this.paging.sortBy || ''));
       segments.push('paging.filterHash=' + escape(this.paging.filterHash || ''));
 
       return segments.join('&');
-    }.bind(this);
-  }
-
-  SearchModel.prototype = {
-    addFilter: function (key, operator, value) {
-      var Constructor = operators[operator] || PrefixOperator;
-      this.filters[key] = new Constructor(value, operator);
     },
-    attachToScope: function ($scope, cb, runNow) {
-      var pagingWatchHandle;
-
-      function attachPagingWatch() {
-        /* jshint validthis: true */
-        pagingWatchHandle = $scope.$watch(function () {
-          return this.paging;
-        }.bind(this), function (newValue, oldValue) {
-          if (newValue.sortBy !== oldValue.sortBy || newValue.pageIndex !== oldValue.pageIndex) {
-            cb(angular.extend({}, this.model, {
-              filters: this.filters
-            }), newValue, false);
-          }
-        }.bind(this), true);
-      }
-
-      function onChange(newValue, oldValue) {
-        /* jshint validthis: true */
-        if (newValue === oldValue) {
-          return;
-        }
-        if (pagingWatchHandle) {
-          pagingWatchHandle();
-        }
-        this.paging.pageIndex = 0;
-        this.paging.filterHash = null;
-        cb(this, true)
-          .then(function (result) {
-            if (result.pageCount !== null) {
-              this.pageCount.length = result.pageCount;
-            }
-
-            this.paging.filterHash = result.filterHash;
-            attachPagingWatch.call(this);
-          }.bind(this));
-      }
-
-      $scope.$watch(function () {
-        return this.model;
-      }.bind(this), onChange.bind(this), true);
-
-      $scope.$watch(function () {
-        return this.filters;
-      }.bind(this), onChange.bind(this), true);
-
-      attachPagingWatch.call(this);
-
-      if (runNow) {
-        onChange.call(this, 1, 2);
-      }
+    toJSON: function () {
+      return {
+        model: this.model,
+        paging: this.paging,
+        filters: this.filters
+      };
     }
   };
 
   PagingModel.prototype = {
     sort: function (by) {
-      if (by === null) {
+      if (by === null || by === undefined) {
         delete this.sortBy;
       } else {
         if (by === this.sortBy) {
