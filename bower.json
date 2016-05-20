@@ -11,7 +11,7 @@
     "angular"
   ],
   "license": "MIT",
-  "homepage": "https://github.com/kiandra-it/quick-grid",
+  "homepage": "https://github.com/worldspawn/quick-grid",
   "ignore": [
     "**/.*",
     "node_modules",
