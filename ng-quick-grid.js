@@ -179,7 +179,7 @@
     if (newValue === oldValue) {
       return;
     }
-    this.apply();
+    this.apply(true);
   }
 
   function attachOtherWatchers() {
@@ -208,9 +208,6 @@
       attachPagingWatch.call(this);
       return this;
     },
-    refresh: function () {
-      this.callback(this);
-    },
     addFilter: function (key, operator, value) {
       var Constructor = operators[operator] || PrefixOperator;
       this.filters[key] = new Constructor(value, operator);
@@ -235,10 +232,10 @@
       var filterCount = 0;
       Object.keys(this.filters)
         .forEach(function (key) {
-          var name = 'filters[' + filterCount+++']';
           var value = this.filters[key].toJSON();
           if (value !== undefined) {
             var not = this.filters[key].not ? '!' : '';
+            var name = 'filters[' + filterCount+++']';
             segments.push(name + '.key=' + escape(key));
             segments.push(name + '.value=' + escape(not + value));
           }
@@ -261,11 +258,17 @@
       return segments.join('&');
     },
     toJSON: function () {
-      return {
-        model: this.model,
+      var result = {
         paging: this.paging,
         filters: this.filters
       };
+
+      Object.keys(this.model)
+        .forEach(function (key) {
+          result[key] = this.model[key];
+        });
+
+      return result;
     }
   };
 
